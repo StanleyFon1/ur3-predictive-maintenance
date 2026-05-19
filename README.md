@@ -7,7 +7,7 @@
 
 A machine-learning pipeline that detects anomalies in a **Universal Robots UR3** collaborative robot arm using sensor data, paired with a **real-time Streamlit dashboard** for live health monitoring.
 
-> **Industry 4.0 context:** Unplanned downtime costs manufacturers an estimated $260,000 per hour (Aberdeen Research). This project demonstrates how predictive maintenance — detecting faults *before* failure — can be achieved with classical ML on readily available sensor streams.
+> **Industry 4.0 context:** Unplanned downtime costs manufacturers an estimated $260,000 per hour (Aberdeen Research). This project demonstrates how predictive maintenance detecting faults *before* failure can be achieved with ML on readily available sensor data streams.
 
 ---
 
@@ -87,7 +87,7 @@ Model Persistence (joblib)  →  models/
 | Recall    | 89%   |
 | ROC AUC   | 0.96  |
 
-> *Note: Results shown are from the synthetic dataset. Performance will vary with real UR3 sensor data.*
+> *Note: Results shown above are from the synthetic dataset. Performance can or will vary with real UR3 sensor data.*
 
 **Confusion Matrix**
 
@@ -101,7 +101,11 @@ Model Persistence (joblib)  →  models/
 
 ## Dashboard Demo
 
-> 🎥 **[YouTube Demo Video](#)** *(link coming soon)*
+> 🎥 **[YouTube Demo Video](#)** *(## Dashboard Demo
+
+[![Watch the demo](https://img.youtube.com/vi/-f97VxfJFSA/0.jpg)](https://youtu.be/-f97VxfJFSA)
+
+🎥 [Click here to watch the demo video on YouTube](https://youtu.be/-f97VxfJFSA))*
 
 The Streamlit dashboard provides:
 - Live anomaly score time-series with configurable threshold line
@@ -188,14 +192,14 @@ ur3-predictive-maintenance/
 
 ## License
 
-This project is licensed under the **MIT License** — see [LICENSE](LICENSE) for details.
+This project is licensed under the **MIT License** see [LICENSE](LICENSE) for details.
 
 ---
 
 ## Author
 
 **Stanley Fon**  
-M.Sc. Mechatronics & Cyber-Physical Systems — Deggendorf Institute of Technology
+M.Sc. Mechatronics & Cyber-Physical Systems. Deggendorf Institute of Technology
 
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-Stanley%20Fon-blue?logo=linkedin)](https://www.linkedin.com/in/stanley-fon-56bb4420b)
 [![GitHub](https://img.shields.io/badge/GitHub-StanleyFon1-black?logo=github)](https://github.com/StanleyFon1)
