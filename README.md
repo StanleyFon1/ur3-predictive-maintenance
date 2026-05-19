@@ -1,4 +1,4 @@
-# 🤖 AI-Based Predictive Maintenance for UR3 Robotic Arm
+# AI-Based Predictive Maintenance for UR3 Robotic Arm
 
 ![Python](https://img.shields.io/badge/Python-3.10+-blue?logo=python)
 ![scikit-learn](https://img.shields.io/badge/scikit--learn-1.3-orange?logo=scikit-learn)
