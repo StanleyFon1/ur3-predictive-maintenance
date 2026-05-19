@@ -101,11 +101,9 @@ Model Persistence (joblib)  →  models/
 
 ## Dashboard Demo
 
-> 🎥 **[YouTube Demo Video](#)** *(## Dashboard Demo
-
 [![Watch the demo](https://img.youtube.com/vi/-f97VxfJFSA/0.jpg)](https://youtu.be/-f97VxfJFSA)
 
-🎥 [Click here to watch the demo video on YouTube](https://youtu.be/-f97VxfJFSA))*
+🎥 [Click here to watch the demo video on YouTube](https://youtu.be/-f97VxfJFSA)
 
 The Streamlit dashboard provides:
 - Live anomaly score time-series with configurable threshold line
@@ -123,24 +121,24 @@ The Streamlit dashboard provides:
 - Python ≥ 3.10
 - Git
 
-### 1 — Clone the repository
+### 1. Clone the repository
 ```bash
 git clone https://github.com/StanleyFon1/ur3-predictive-maintenance.git
 cd ur3-predictive-maintenance
 ```
 
-### 2 — Create a virtual environment (recommended)
+### 2. Create a virtual environment (recommended)
 ```bash
 python -m venv venv
 source venv/bin/activate        # Windows: venv\Scripts\activate
 ```
 
-### 3 — Install dependencies
+### 3. Install dependencies
 ```bash
 pip install -r requirements.txt
 ```
 
-### 4 — Train the model
+### 4. Train the model
 ```bash
 python src/train.py
 ```
@@ -151,7 +149,7 @@ This generates `data/ur3_cobotops.csv` (if absent), trains the classifier, print
 - `results/confusion_matrix.png`
 - `results/feature_importance.png`
 
-### 5 — Launch the dashboard
+### 5. Launch the dashboard
 ```bash
 streamlit run dashboard/app.py
 ```
