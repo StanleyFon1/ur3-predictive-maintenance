@@ -1,6 +1,6 @@
 """
-dashboard/app.py  –  UR3 Predictive Maintenance Dashboard
-Launch:  streamlit run dashboard/app.py
+dashboard/app.py – UR3 Predictive Maintenance Dashboard
+Launch: streamlit run dashboard/app.py
 """
 
 import time
@@ -62,7 +62,6 @@ def simulate_reading(anomaly: bool = False) -> dict:
         vibration     = float(rng.normal(0.05, 0.01)),
     )
 
-
 def build_feature_row(reading: dict, history: pd.DataFrame, window: int = 5) -> pd.DataFrame:
     """Combine raw reading with rolling stats to match training feature set."""
     base = {col: reading[col] for col in BASE_COLS}
@@ -71,7 +70,6 @@ def build_feature_row(reading: dict, history: pd.DataFrame, window: int = 5) -> 
         base[f"{col}_roll_mean"] = tail[col].mean()
         base[f"{col}_roll_std"]  = tail[col].std() if len(tail) > 1 else 0.0
     return pd.DataFrame([base])[feature_names]
-
 
 # ── Session state ─────────────────────────────────────────────────────────────
 if "history" not in st.session_state:
@@ -104,7 +102,7 @@ with st.sidebar:
             )
 
     st.divider()
-    st.caption("**Model:** Random Forest (200 trees)")
+    st.caption("**Model:** Random Forest (100 trees)")
     st.caption("**Dataset:** UR3 CobotOps (synthetic)")
     st.caption("**Author:** Stanley Fon")
 

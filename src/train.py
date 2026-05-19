@@ -1,183 +1,140 @@
-"""
-train.py  –  UR3 Predictive Maintenance | Random Forest Classifier
-Run:  python src/train.py
-"""
-
-import os
 import numpy as np
 import pandas as pd
+import os
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report, roc_auc_score, confusion_matrix
 import joblib
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import (
-    accuracy_score, precision_score, recall_score,
-    roc_auc_score, confusion_matrix, classification_report,
+# ------------------------------------------------------------
+# 1. Create or load dataset
+# ------------------------------------------------------------
+DATA_PATH = "data/ur3_cobotops.csv"
+os.makedirs("data", exist_ok=True)
+os.makedirs("models", exist_ok=True)
+os.makedirs("results", exist_ok=True)
+
+if not os.path.exists(DATA_PATH):
+    print("Dataset not found – generating synthetic dataset...")
+    np.random.seed(42)
+    n_samples = 5000
+    normal_data = {
+        "current_j1": np.random.normal(2.10, 0.15, n_samples),
+        "current_j2": np.random.normal(2.40, 0.18, n_samples),
+        "current_j3": np.random.normal(1.80, 0.12, n_samples),
+        "temperature_j1": np.random.normal(45.0, 2.0, n_samples),
+        "temperature_j2": np.random.normal(47.0, 2.5, n_samples),
+        "vibration": np.random.normal(0.05, 0.01, n_samples),
+        "anomaly": 0
+    }
+    n_anom = 500
+    anom_data = {
+        "current_j1": np.random.normal(3.20, 0.40, n_anom),
+        "current_j2": np.random.normal(3.60, 0.50, n_anom),
+        "current_j3": np.random.normal(2.80, 0.35, n_anom),
+        "temperature_j1": np.random.normal(62.0, 5.0, n_anom),
+        "temperature_j2": np.random.normal(65.0, 6.0, n_anom),
+        "vibration": np.random.normal(0.18, 0.05, n_anom),
+        "anomaly": 1
+    }
+    df_normal = pd.DataFrame(normal_data)
+    df_anom = pd.DataFrame(anom_data)
+    df = pd.concat([df_normal, df_anom], ignore_index=True)
+    df = df.sample(frac=1, random_state=42).reset_index(drop=True)
+    df.to_csv(DATA_PATH, index=False)
+    print(f"Synthetic dataset saved to {DATA_PATH}")
+else:
+    df = pd.read_csv(DATA_PATH)
+    print(f"Loaded dataset from {DATA_PATH}")
+
+print(f"Dataset shape: {df.shape}")
+
+# ------------------------------------------------------------
+# 2. Feature Engineering – rolling statistics
+# ------------------------------------------------------------
+BASE_COLS = ["current_j1", "current_j2", "current_j3",
+             "temperature_j1", "temperature_j2", "vibration"]
+
+# Create rolling mean and std for each base column (window = 5)
+df_sorted = df.sort_index()  # already shuffled, but ensure order
+for col in BASE_COLS:
+    df_sorted[f"{col}_roll_mean"] = df_sorted[col].rolling(window=5, min_periods=1).mean()
+    df_sorted[f"{col}_roll_std"]  = df_sorted[col].rolling(window=5, min_periods=1).std().fillna(0)
+
+# Drop the first 4 rows where rolling might be incomplete? Keep all, min_periods=1 handles it.
+X = df_sorted.drop(columns=["anomaly"])
+y = df_sorted["anomaly"]
+
+# Keep feature names for later
+feature_names = X.columns.tolist()
+print(f"Total features after engineering: {len(feature_names)}")
+
+# ------------------------------------------------------------
+# 3. Train / test split (stratified)
+# ------------------------------------------------------------
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42, stratify=y
 )
 
-# ── Config ────────────────────────────────────────────────────────────────────
-DATA_PATH    = "data/ur3_cobotops.csv"
-MODEL_DIR    = "models"
-RESULTS_DIR  = "results"
-WINDOW       = 5        # rolling feature window
-N_ESTIMATORS = 200
-RANDOM_STATE = 42
+# ------------------------------------------------------------
+# 4. Normalize features
+# ------------------------------------------------------------
+scaler = StandardScaler()
+X_train_scaled = scaler.fit_transform(X_train)
+X_test_scaled = scaler.transform(X_test)
 
-BASE_FEATURES = [
-    "current_j1", "current_j2", "current_j3",
-    "temperature_j1", "temperature_j2",
-    "vibration",
-]
+# ------------------------------------------------------------
+# 5. Train Random Forest Classifier
+# ------------------------------------------------------------
+print("Training Random Forest...")
+rf = RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1)
+rf.fit(X_train_scaled, y_train)
 
-# ── 1. Data ───────────────────────────────────────────────────────────────────
+# ------------------------------------------------------------
+# 6. Evaluate
+# ------------------------------------------------------------
+y_pred = rf.predict(X_test_scaled)
+y_proba = rf.predict_proba(X_test_scaled)[:, 1]
 
-def load_or_generate(path: str) -> pd.DataFrame:
-    """Load CSV if it exists; otherwise synthesise realistic UR3 sensor data."""
-    if os.path.exists(path):
-        print(f"[INFO] Loading dataset from {path}")
-        return pd.read_csv(path)
+print("\n=== Classification Report ===")
+print(classification_report(y_test, y_pred, target_names=["Normal", "Anomaly"]))
+print(f"ROC AUC: {roc_auc_score(y_test, y_proba):.4f}")
 
-    print("[INFO] Dataset not found – generating synthetic UR3 sensor data …")
-    rng = np.random.default_rng(RANDOM_STATE)
-    n, ratio = 5_000, 0.85
-    n_normal  = int(n * ratio)
-    n_anomaly = n - n_normal
+# Confusion matrix
+cm = confusion_matrix(y_test, y_pred)
+plt.figure(figsize=(6,5))
+sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
+            xticklabels=["Normal", "Anomaly"],
+            yticklabels=["Normal", "Anomaly"])
+plt.title("Confusion Matrix")
+plt.ylabel("True")
+plt.xlabel("Predicted")
+plt.savefig("results/confusion_matrix.png", dpi=150)
+plt.close()
+print("Confusion matrix saved to results/confusion_matrix.png")
 
-    normal = {
-        "current_j1":    rng.normal(2.10, 0.15, n_normal),
-        "current_j2":    rng.normal(2.40, 0.18, n_normal),
-        "current_j3":    rng.normal(1.80, 0.12, n_normal),
-        "temperature_j1":rng.normal(45.0,  2.0, n_normal),
-        "temperature_j2":rng.normal(47.0,  2.5, n_normal),
-        "vibration":     rng.normal(0.05, 0.01, n_normal),
-        "anomaly":       np.zeros(n_normal, dtype=int),
-    }
-    anomaly = {
-        "current_j1":    rng.normal(3.20, 0.40, n_anomaly),
-        "current_j2":    rng.normal(3.60, 0.50, n_anomaly),
-        "current_j3":    rng.normal(2.80, 0.35, n_anomaly),
-        "temperature_j1":rng.normal(62.0,  5.0, n_anomaly),
-        "temperature_j2":rng.normal(65.0,  6.0, n_anomaly),
-        "vibration":     rng.normal(0.18, 0.05, n_anomaly),
-        "anomaly":       np.ones(n_anomaly, dtype=int),
-    }
+# Feature importance
+importances = rf.feature_importances_
+indices = np.argsort(importances)[::-1][:15]  # top 15
+plt.figure(figsize=(8,6))
+plt.title("Top 15 Feature Importances")
+plt.barh(range(len(indices)), importances[indices], align="center")
+plt.yticks(range(len(indices)), [feature_names[i] for i in indices])
+plt.gca().invert_yaxis()
+plt.xlabel("Relative Importance")
+plt.tight_layout()
+plt.savefig("results/feature_importance.png", dpi=150)
+plt.close()
+print("Feature importance plot saved to results/feature_importance.png")
 
-    df = (
-        pd.concat([pd.DataFrame(normal), pd.DataFrame(anomaly)], ignore_index=True)
-        .sample(frac=1, random_state=RANDOM_STATE)
-        .reset_index(drop=True)
-    )
-    os.makedirs("data", exist_ok=True)
-    df.to_csv(path, index=False)
-    print(f"[INFO] Synthetic data saved → {path}  ({len(df):,} rows, "
-          f"{n_anomaly} anomalies = {n_anomaly/n:.0%})")
-    return df
-
-
-# ── 2. Feature engineering ────────────────────────────────────────────────────
-
-def add_rolling_features(df: pd.DataFrame, window: int = WINDOW) -> pd.DataFrame:
-    """Append rolling mean and std for every base sensor column."""
-    df = df.copy()
-    for col in BASE_FEATURES:
-        df[f"{col}_roll_mean"] = df[col].rolling(window, min_periods=1).mean()
-        df[f"{col}_roll_std"]  = df[col].rolling(window, min_periods=1).std().fillna(0)
-    return df
-
-
-# ── 3. Training & evaluation ─────────────────────────────────────────────────
-
-def train():
-    os.makedirs(MODEL_DIR,   exist_ok=True)
-    os.makedirs(RESULTS_DIR, exist_ok=True)
-
-    # --- Load & engineer ---
-    df = load_or_generate(DATA_PATH)
-    df = add_rolling_features(df)
-
-    X = df.drop(columns=["anomaly"])
-    y = df["anomaly"]
-
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=RANDOM_STATE, stratify=y
-    )
-
-    # --- Scale ---
-    scaler = StandardScaler()
-    X_train_sc = scaler.fit_transform(X_train)
-    X_test_sc  = scaler.transform(X_test)
-
-    # --- Fit ---
-    print("[INFO] Training Random Forest …")
-    clf = RandomForestClassifier(
-        n_estimators=N_ESTIMATORS,
-        max_depth=None,
-        random_state=RANDOM_STATE,
-        n_jobs=-1,
-    )
-    clf.fit(X_train_sc, y_train)
-
-    # --- Evaluate ---
-    y_pred = clf.predict(X_test_sc)
-    y_prob = clf.predict_proba(X_test_sc)[:, 1]
-
-    print("\n" + "=" * 40)
-    print("  EVALUATION RESULTS")
-    print("=" * 40)
-    print(f"  Accuracy  : {accuracy_score(y_test, y_pred):.4f}")
-    print(f"  Precision : {precision_score(y_test, y_pred):.4f}")
-    print(f"  Recall    : {recall_score(y_test, y_pred):.4f}")
-    print(f"  ROC AUC   : {roc_auc_score(y_test, y_prob):.4f}")
-    print("=" * 40)
-    print(classification_report(y_test, y_pred, target_names=["Normal", "Anomaly"]))
-
-    # --- Save artefacts ---
-    joblib.dump(clf,              f"{MODEL_DIR}/rf_model.pkl")
-    joblib.dump(scaler,           f"{MODEL_DIR}/scaler.pkl")
-    joblib.dump(list(X.columns),  f"{MODEL_DIR}/feature_names.pkl")
-    print("[INFO] Model artefacts saved → models/")
-
-    # --- Plots ---
-    _plot_confusion_matrix(y_test, y_pred)
-    _plot_feature_importance(clf, X.columns)
-    print(f"[INFO] Plots saved → {RESULTS_DIR}/")
-
-
-# ── 4. Plots ──────────────────────────────────────────────────────────────────
-
-def _plot_confusion_matrix(y_test, y_pred):
-    cm = confusion_matrix(y_test, y_pred)
-    fig, ax = plt.subplots(figsize=(5, 4))
-    sns.heatmap(
-        cm, annot=True, fmt="d", cmap="Blues", ax=ax,
-        xticklabels=["Normal", "Anomaly"],
-        yticklabels=["Normal", "Anomaly"],
-    )
-    ax.set_xlabel("Predicted")
-    ax.set_ylabel("Actual")
-    ax.set_title("Confusion Matrix – UR3 Anomaly Detection")
-    plt.tight_layout()
-    plt.savefig(f"{RESULTS_DIR}/confusion_matrix.png", dpi=150)
-    plt.close()
-
-
-def _plot_feature_importance(clf, feature_names, top_n: int = 15):
-    importances = pd.Series(clf.feature_importances_, index=feature_names)
-    top = importances.sort_values(ascending=False).head(top_n)
-
-    fig, ax = plt.subplots(figsize=(7, 5))
-    top.plot(kind="barh", ax=ax, color="steelblue")
-    ax.invert_yaxis()
-    ax.set_title(f"Top {top_n} Feature Importances")
-    ax.set_xlabel("Mean Decrease in Impurity")
-    plt.tight_layout()
-    plt.savefig(f"{RESULTS_DIR}/feature_importance.png", dpi=150)
-    plt.close()
-
-
-# ── Entry point ───────────────────────────────────────────────────────────────
-if __name__ == "__main__":
-    train()
+# ------------------------------------------------------------
+# 7. Save model, scaler, and feature names
+# ------------------------------------------------------------
+joblib.dump(rf, "models/rf_model.pkl")
+joblib.dump(scaler, "models/scaler.pkl")
+joblib.dump(feature_names, "models/feature_names.pkl")
+print("\nModel artefacts saved to models/")
+print("Training complete.")
